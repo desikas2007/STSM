@@ -1,0 +1,10 @@
+node_modules/
+dist/
+build/
+.env
+backend/.env
+blockchain/.env
+blockchain/cache/
+blockchain/artifacts/
+*.log
+.DS_Store
