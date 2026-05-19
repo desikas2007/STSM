@@ -98,7 +98,7 @@ This writes `frontend/src/blockchain/TouristDigitalID.json` with address + ABI.
 
 ```bash
 cd backend
-npm start
+npm run dev
 ```
 
 ### Step 7: Start frontend
