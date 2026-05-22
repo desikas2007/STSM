@@ -14,20 +14,23 @@ const aiRoutes = require("./routes/ai");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "https://stsm-eight.vercel.app",
-  process.env.FRONTEND_URL,
-].filter(Boolean);
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+app.use(
+  cors({
+    origin: ["http://localhost:3000", "http://localhost:5173"],
+    credentials: true,
+  })
+);
 app.use(express.json({ limit: "10mb" }));
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "session_secret",
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 24 * 60 * 60 * 1000 },
+    cookie: { 
+      maxAge: 24 * 60 * 60 * 1000,  // 24 hours
+      httpOnly: true,  // Prevent XSS
+      sameSite: "lax"  // CSRF protection
+    },
   })
 );
 
