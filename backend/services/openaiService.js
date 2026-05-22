@@ -1,10 +1,23 @@
 const OpenAI = require("openai");
 
 if (!process.env.OPENAI_API_KEY) {
-  console.warn("WARNING: OPENAI_API_KEY is not set. AI features will fail until this environment variable is configured.");
+  console.error("❌ CRITICAL: OPENAI_API_KEY is missing in backend/.env");
+  console.error("   To fix: Get API key from https://openrouter.ai/keys and add to .env");
+} else {
+  console.log("✓ OpenRouter API Key configured and ready");
 }
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Using OpenRouter API (compatible with OpenAI SDK)
+const openai = new OpenAI({ 
+  apiKey: process.env.OPENAI_API_KEY,
+  baseURL: "https://openrouter.ai/api/v1",  // OpenRouter endpoint
+  timeout: 30000,  // 30 second timeout
+  maxRetries: 2,
+  defaultHeaders: {
+    "HTTP-Referer": "http://localhost:5000",  // Optional: helps with rate limiting
+    "X-Title": "Smart Tourist Safety"  // Optional: custom header
+  }
+});
 
 function parseJsonFromText(text) {
   const match = text.match(/\{[\s\S]*\}/);
@@ -79,19 +92,38 @@ async function chatWithAI(userMessage, userLocation, history = []) {
   const messages = [
     {
       role: "system",
-      content: `You are SafeBot, an AI assistant for the Smart Tourist Safety System. You help tourists with safety advice, emergency procedures, and local information. The user is currently in ${userLocation || "an unknown location"}.`,
+      content: `You are SafeBot, an AI safety assistant for tourists. Provide practical safety advice and local information. User location: ${userLocation || "unknown"}. Be concise, helpful, and prioritize safety. If emergency info needed, provide specific steps.`,
     },
     ...history,
     { role: "user", content: userMessage },
   ];
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages,
-    temperature: 0.7,
-  });
+  try {
+    console.log(`[OpenRouter] Sending chat request (${messages.length} messages, history: ${history.length})`);
+    
+    const completion = await openai.chat.completions.create({
+      model: "openai/gpt-4o",  // OpenRouter model name
+      messages,
+      temperature: 0.7,
+      max_tokens: 500,
+    });
 
-  return completion.choices[0].message.content;
+    if (!completion.choices || completion.choices.length === 0) {
+      throw new Error("No response from OpenRouter API");
+    }
+
+    const reply = completion.choices[0].message.content;
+    console.log(`[OpenRouter] ✓ Response received (${reply.length} chars)`);
+    return reply;
+  } catch (error) {
+    console.error(`[OpenRouter] API Error:`, {
+      name: error.name,
+      message: error.message,
+      status: error.status,
+      code: error.code
+    });
+    throw error;
+  }
 }
 
 module.exports = {
