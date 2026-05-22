@@ -33,21 +33,37 @@ export default function AIAssistant({ open, onClose }) {
     setMessages((m) => [...m, { role: "user", text: msg }]);
     setTyping(true);
     try {
-      const { data } = await ai.chat(msg, user?.location);
-      setMessages((m) => [...m, { role: "assistant", text: data.reply }]);
-    } catch (error) {
-      let errorMsg = "Sorry, I could not reach the safety server. Try again.";
-      if (error.response?.status === 500) {
-        const details = error.response.data?.details || error.response.data?.error;
-        errorMsg = details 
-          ? `Server error: ${error.response.data.message}. ${details}`
-          : "Server error: Unable to process request. Please contact support.";
-      } else if (error.response?.status === 400) {
-        errorMsg = error.response.data?.message || "Invalid request. Please check your input.";
+      console.log("[AIAssistant] Sending message to backend...");
+      const response = await ai.chat(msg, user?.location);
+      console.log("[AIAssistant] Response received:", response.data);
+      
+      if (!response.data || !response.data.reply) {
+        throw new Error("Invalid response format from server");
       }
+      
+      setMessages((m) => [...m, { role: "assistant", text: response.data.reply }]);
+    } catch (error) {
+      console.error("[AIAssistant] Error:", error);
+      let errorMsg = "Sorry, I could not reach the safety server. Try again.";
+      
+      if (error.response?.status === 500) {
+        const errData = error.response.data;
+        errorMsg = errData?.details 
+          ? `Server error: ${errData.details}`
+          : `Server error: ${errData?.message || "Cannot process request"}`;
+      } else if (error.response?.status === 400) {
+        errorMsg = error.response.data?.message || "Invalid request. Check your input.";
+      } else if (error.response?.status === 429) {
+        errorMsg = "Too many requests. Please wait a moment and try again.";
+      } else if (error.message === "Network Error") {
+        errorMsg = "Network error. Check if backend server is running on port 5000.";
+      } else if (error.message.includes("timeout")) {
+        errorMsg = "Request timed out. Server took too long to respond.";
+      }
+      
       setMessages((m) => [
         ...m,
-        { role: "assistant", text: errorMsg },
+        { role: "assistant", text: `❌ ${errorMsg}` },
       ]);
     } finally {
       setTyping(false);
